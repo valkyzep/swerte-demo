@@ -1,0 +1,475 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Swerte Meter Widget Test</title>
+  <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+  <script src="./dist/swerte-meter-widget.umd.cjs"></script>
+  <style>
+    body {
+      background-color: #333;
+      color: white;
+      font-family: Arial;
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+    
+    .widget-preview {
+      border: 2px solid #555;
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+      margin: 30px 0;
+      background: #222;
+    }
+    
+    .widget-preview-header {
+      background: #444;
+      padding: 15px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    
+    .widget-preview-title {
+      font-weight: bold;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    
+    .widget-preview-content {
+      padding: 20px;
+      min-height: 300px;
+    }
+    
+    .embed-code {
+      background: #222;
+      padding: 15px;
+      border-radius: 8px;
+      font-family: monospace;
+      white-space: pre-wrap;
+    }
+    
+    .copy-button {
+      background: #666;
+      color: white;
+      border: none;
+      padding: 5px 10px;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    
+    .test-controls {
+      background: #444;
+      padding: 15px;
+      border-radius: 8px;
+      margin: 20px 0;
+    }
+    
+    .tabs {
+      display: flex;
+      margin-bottom: 20px;
+      border-bottom: 1px solid #555;
+    }
+    
+    .tab {
+      padding: 10px 20px;
+      cursor: pointer;
+      border-bottom: 3px solid transparent;
+    }
+    
+    .tab.active {
+      border-bottom: 3px solid #4CAF50;
+      font-weight: bold;
+    }
+    
+    /* Keep your existing styles */
+    .test-section {
+      background-color: #444;
+      padding: 20px;
+      border-radius: 8px;
+      margin: 20px 0;
+    }
+    
+    .key-box {
+      background: #222;
+      padding: 15px;
+      font-family: monospace;
+      margin: 10px 0;
+      border-radius: 4px;
+      word-break: break-all;
+    }
+    
+    button {
+      background: #4CAF50;
+      color: white;
+      border: none;
+      padding: 10px 15px;
+      border-radius: 4px;
+      cursor: pointer;
+      margin-right: 5px;
+      margin-bottom: 10px;
+    }
+    
+    button:hover {
+      background: #3e8e41;
+    }
+    
+    input, select {
+      padding: 10px;
+      border: none;
+      border-radius: 4px;
+      margin-right: 5px;
+      width: 60%;
+    }
+    
+    .valid {
+      border-left: 5px solid #4CAF50;
+    }
+    
+    .invalid {
+      border-left: 5px solid #F44336;
+    }
+    
+    .status-indicator {
+      display: inline-block;
+      width: 24px;
+      height: 24px;
+      line-height: 24px;
+      text-align: center;
+      border-radius: 50%;
+      font-weight: bold;
+      margin-right: 10px;
+      font-size: 16px;
+    }
+    
+    .valid-indicator {
+      background-color: #4CAF50;
+      color: white;
+    }
+    
+    .invalid-indicator {
+      background-color: #F44336;
+      color: white;
+    }
+    
+    .preview-mode {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      z-index: 100;
+    }
+    
+    swerte-meter {
+      display: block;
+      width: 100%;
+      min-height: 400px; /* Adjust as needed */
+    }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <div v-if="!previewMode">
+      <h1>Swerte Meter Widget Test</h1>
+      
+      <div class="tabs">
+        <div class="tab" :class="{ active: activeTab === 'test' }" @click="activeTab = 'test'">Test Widget</div>
+        <div class="tab" :class="{ active: activeTab === 'embed' }" @click="activeTab = 'embed'">Embed Code</div>
+      </div>
+      
+      <!-- Test tab -->
+      <div v-if="activeTab === 'test'">
+        <div class="test-controls">
+          <h3>Test Controls</h3>
+          
+          <div v-if="apiKeys && Object.keys(apiKeys).length > 0">
+            <p>API Key:</p>
+            <select v-model="selectedApiKey" style="background: #222; color: white; border: 1px solid #555;">
+              <option v-for="(details, key) in apiKeys" :key="key" :value="key">
+                {{ key.substring(0, 12) + '...' }} ({{ details.user }} - {{ details.tier }})
+              </option>
+            </select>
+            <button @click="applySelectedKey">Apply Key</button>
+          </div>
+          <div v-else class="key-box invalid">
+            No API keys found. Please generate keys in the Admin Panel first.
+          </div>
+          
+          <div style="margin-top: 15px;">
+            <input type="text" v-model="manualApiKey" placeholder="Enter API key manually">
+            <button @click="applyManualKey">Apply Key</button>
+            <button @click="validateManualKey">Check Validity</button>
+          </div>
+          
+          <div v-if="keyValidated" class="key-box" :class="keyIsValid ? 'valid' : 'invalid'">
+            <div class="status-indicator" :class="keyIsValid ? 'valid-indicator' : 'invalid-indicator'">
+              {{ keyIsValid ? '✓' : '✗' }}
+            </div>
+            Key is {{ keyIsValid ? 'VALID' : 'INVALID' }}
+          </div>
+          
+          <div style="margin-top: 15px;">
+            <button @click="refreshWidget">Refresh Widget</button>
+            <button @click="setTheme('light')">Light Theme</button>
+            <button @click="setTheme('dark')">Dark Theme</button>
+            <button @click="reloadPage" style="background: #ff9800;">Reload Page</button>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Embed tab -->
+      <div v-if="activeTab === 'embed'">
+        <div class="test-section">
+          <h3>Widget Embed Code</h3>
+          <p>Copy and paste this code into your website:</p>
+          <div class="embed-code">
+&lt;!-- Swerte Meter Widget --&gt;
+&lt;script src="https://example.com/dist/swerte-meter-widget.umd.js"&gt;&lt;/script&gt;
+&lt;swerte-meter api-key="{{ currentApiKey }}" theme="dark"&gt;&lt;/swerte-meter&gt;
+          </div>
+          <button @click="copyEmbedCode" class="copy-button">Copy Code</button>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Widget Preview -->
+    <div class="widget-preview">
+      <div class="widget-preview-header">
+        <div class="widget-preview-title">
+          <div class="status-indicator" :class="currentKeyIsValid ? 'valid-indicator' : 'invalid-indicator'">
+            {{ currentKeyIsValid ? '✓' : '✗' }}
+          </div>
+          Swerte Meter Widget Preview
+        </div>
+        <div>
+          <span>API Key: {{ currentApiKey.substring(0, 12) }}...</span>
+        </div>
+      </div>
+      <div class="widget-preview-content">
+        <swerte-meter :api-key="currentApiKey" theme="dark"></swerte-meter>
+      </div>
+    </div>
+    
+    <!-- Preview mode toggle -->
+    <button @click="togglePreviewMode" class="preview-mode" :style="{ background: previewMode ? '#ff9800' : '#4CAF50' }">
+      {{ previewMode ? 'Show Controls' : 'Preview Only' }}
+    </button>
+  </div>
+
+  <script>
+    // Get API keys from localStorage (where ApiKeyAdmin stores them)
+    function getApiKeysFromStorage() {
+      try {
+        const savedKeys = localStorage.getItem('swerteApiKeys');
+        if (savedKeys) {
+          return JSON.parse(savedKeys);
+        }
+      } catch (e) {
+        console.error('Error loading API keys from storage:', e);
+      }
+      
+      // Default keys if none are found
+      return {
+        'swerte_demo': { 
+          user: 'Demo User', 
+          tier: 'free',
+          created: new Date().toISOString()
+        }
+      };
+    }
+    
+    const { createApp } = Vue;
+    
+    // Change this part - create app with options first
+    const app = createApp({
+      data() {
+        return {
+          message: "Vue is working correctly!",
+          apiKeys: {},
+          selectedApiKey: '',
+          manualApiKey: '',
+          currentApiKey: 'swerte_demo',
+          keyValidated: false,
+          keyIsValid: false,
+          validatedKeyDetails: null,
+          currentKeyIsValid: true,
+          activeTab: 'test',
+          previewMode: false
+        }
+      },
+      mounted() {
+        // Keep your existing mounted code
+        this.loadApiKeys();
+        
+        const savedKey = localStorage.getItem('swerteCurrentKey');
+        if (savedKey) {
+          this.currentApiKey = savedKey;
+          const { isValid } = this.validateKey(savedKey);
+          this.currentKeyIsValid = isValid;
+        }
+        
+        console.log('LocalStorage API keys:', localStorage.getItem('swerteApiKeys'));
+      },
+      methods: {
+        // Keep all your existing methods
+        loadApiKeys() {
+          this.apiKeys = getApiKeysFromStorage();
+          console.log('Loaded API keys:', this.apiKeys);
+          
+          // Select the first key if available
+          const keys = Object.keys(this.apiKeys);
+          if (keys.length > 0) {
+            this.selectedApiKey = keys[0];
+          }
+        },
+        validateKey(key) {
+          const apiKeys = getApiKeysFromStorage();
+          const keyData = apiKeys[key];
+          return { isValid: !!keyData, details: keyData };
+        },
+        validateManualKey() {
+          if (!this.manualApiKey) {
+            alert('Please enter an API key to validate');
+            return;
+          }
+          
+          const { isValid, details } = this.validateKey(this.manualApiKey);
+          this.keyValidated = true;
+          this.keyIsValid = isValid;
+          this.validatedKeyDetails = details;
+        },
+        applySelectedKey() {
+          if (!this.selectedApiKey) {
+            alert('Please select an API key');
+            return;
+          }
+          
+          this.currentApiKey = this.selectedApiKey;
+          this.currentKeyIsValid = true;
+          console.log('Applied selected API key:', this.currentApiKey);
+          
+          // Store the selected key for the homepage to access
+          localStorage.setItem('swerteCurrentKey', this.selectedApiKey);
+        },
+        applyManualKey() {
+          if (!this.manualApiKey) {
+            alert('Please enter an API key');
+            return;
+          }
+          
+          this.currentApiKey = this.manualApiKey;
+          const { isValid } = this.validateKey(this.manualApiKey);
+          this.currentKeyIsValid = isValid;
+          console.log('Applied manual API key:', this.currentApiKey, isValid ? '(valid)' : '(invalid)');
+          
+          if (isValid) {
+            localStorage.setItem('swerteCurrentKey', this.manualApiKey);
+          }
+        },
+        refreshWidget() {
+          if (window.SwerteMeter && window.SwerteMeter.refresh) {
+            window.SwerteMeter.refresh();
+            console.log('Widget refreshed');
+          } else {
+            console.error('SwerteMeter.refresh is not available');
+          }
+        },
+        setTheme(theme) {
+          if (window.SwerteMeter && window.SwerteMeter.setTheme) {
+            window.SwerteMeter.setTheme(theme);
+            console.log(`Theme set to: ${theme}`);
+          } else {
+            console.error('SwerteMeter.setTheme is not available');
+          }
+        },
+        reloadPage() {
+          window.location.reload();
+        },
+        copyEmbedCode() {
+          const code = `<!-- Swerte Meter Widget -->\n<script src="https://example.com/dist/swerte-meter-widget.umd.cjs"><\/script>\n<swerte-meter api-key="${this.currentApiKey}" theme="dark"></swerte-meter>`;
+          navigator.clipboard.writeText(code)
+            .then(() => alert('Embed code copied to clipboard!'))
+            .catch(err => console.error('Could not copy code: ', err));
+        },
+        togglePreviewMode() {
+          this.previewMode = !this.previewMode;
+        },
+        goToHome() {
+          // Store the current key for the homepage to access
+          localStorage.setItem('swerteCurrentKey', this.currentApiKey);
+          
+          // Redirect to homepage
+          window.location.href = '/';
+        }
+      },
+      // Add this compiler options section
+      compilerOptions: {
+        isCustomElement: tag => tag === 'swerte-meter'
+      }
+    });
+    
+    // Mount the app separately
+    app.mount('#app');
+    
+    // Debug widget loading
+    console.log('SwerteMeter global object exists?', typeof SwerteMeter !== 'undefined');
+    console.log('Custom elements registry contains swerte-meter?', 
+      customElements.get('swerte-meter') !== undefined);
+    
+    // Try to register a fallback if widget failed to load
+    if (customElements.get('swerte-meter') === undefined) {
+      console.log('Widget not registered, adding fallback display');
+      
+      // Add a simple fallback element
+      customElements.define('swerte-meter', class extends HTMLElement {
+        static get observedAttributes() {
+          return ['api-key'];
+        }
+        connectedCallback() {
+          this.render();
+        }
+        attributeChangedCallback() {
+          this.render();
+        }
+        render() {
+          this.innerHTML =
+            '<div style="padding: 20px; background:#333; border:2px dashed red; text-align:center;">' +
+            '<h3>Widget Failed to Load</h3>' +
+            '<p>API Key: ' + (this.getAttribute('api-key') || 'none') + '</p>' +
+            '</div>';
+        }
+      });
+    }
+
+    // Add after your app.mount() call
+    setTimeout(() => {
+      console.log('SwerteMeter object details:', window.SwerteMeter);
+      console.log('Widget element:', document.querySelector('swerte-meter'));
+      
+      // Try to inspect the shadow DOM if it exists
+      const widget = document.querySelector('swerte-meter');
+      if (widget.shadowRoot) {
+        console.log('Shadow DOM content:', widget.shadowRoot.innerHTML);
+      }
+    }, 1000);
+    
+    // Add this right after your script is loaded
+    if (window.SwerteMeter && window.SwerteMeter.init) {
+      window.SwerteMeter.init();
+    }
+
+    // Add to your <script>
+    const originalFetch = window.fetch;
+    window.fetch = function(...args) {
+      console.log('Fetch request:', args);
+      return originalFetch.apply(this, args)
+        .then(response => {
+          console.log('Fetch response:', response.clone());
+          return response;
+        });
+    };
+  </script>
+</body>
+</html>

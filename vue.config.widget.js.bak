@@ -1,0 +1,13 @@
+module.exports = {
+  configureWebpack: {
+    entry: './src/widget-main.js',
+    output: {
+      filename: 'swerte-meter-widget.js',
+      libraryTarget: 'umd',
+      library: 'SwerteWidget'
+    }
+  },
+  css: {
+    extract: true
+  }
+}
